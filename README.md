@@ -104,7 +104,7 @@ This removed 31 observations, yielding an analytical sample of N = 119.
 
 ### Rescaling of Misformatted Entries
 
-Two respondents entered absolute monetary amounts rather than percentage shares (allocation sums exceeding 110). These were rescaled to percentages using: `rescaled = 100 × (original / sum)`. The script logs both original and rescaled values.
+Two respondents entered absolute monetary amounts rather than percentage shares (allocation sums exceeding 100). These were rescaled to percentages using: `rescaled = 100 × (original / sum)`. The script logs both original and rescaled values.
 
 ### Multi-Discipline Respondents
 
