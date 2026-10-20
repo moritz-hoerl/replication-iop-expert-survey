@@ -150,7 +150,7 @@ All results are printed to the console. Tables are saved to `output/tables/`.
 |---|---|---|---|---|
 | Proportion redistributing | 89.1% | 54.7% | +34.4 pp | < 0.001 (adjusted) |
 | Mean share to disadvantaged | 35.3% | 24.2% | +11.1 pp | < 0.001 (adjusted) |
-| Circumstances judged unfair | 95.8% | 82.0% | +13.8 pp | < 0.001 (adjusted) |
+| Circumstances judged unfair | 95.8% | 73.0% | +22.8 pp | < 0.001 (adjusted) |
 | Outcomes judged unfair (secondary) | 27.7% | 18.0% | +9.7 pp | 0.020 (unadjusted) |
 
 The p-values of the three primary comparisons are Holm–Bonferroni adjusted. The outcome comparison is a secondary result.
