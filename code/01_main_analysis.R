@@ -9,7 +9,7 @@
 # Data:         Replication shallow meritocracy_expert_sample.csv
 #
 # Author:      Moritz Hörl
-# Date:        27.02.2027
+# Date:        October 2026
 # Software:     R >= 4.0
 ###############################################################################
 
@@ -319,6 +319,55 @@ cat("Difference:", round(diff_andre, 3),
 cat("Chi-squared =", round(prop_test_andre$statistic, 3),
     ", p =", format.pval(prop_test_andre$p.value, digits = 4), "\n")
 
+# --- 6b. Comparison with Andre (2024): outcomes judged 'Unfair' --------------
+# Secondary comparison (not part of the three primary tests in Section 8).
+# NOTE: andre_out_n should be set to the N Andre (2024) reports for the
+#       outcome-fairness question. Using N = 887 instead yields p ~ 0.017.
+
+expert_out_unfair_n <- sum(vignette1$result_1 == "Unfair", na.rm = TRUE)
+expert_out_n        <- sum(!is.na(vignette1$result_1))
+
+andre_out_p <- 0.18
+andre_out_n <- 601
+
+prop_test_out <- prop.test(
+  x = c(expert_out_unfair_n, round(andre_out_p * andre_out_n)),
+  n = c(expert_out_n, andre_out_n),
+  correct = TRUE
+)
+
+p_expert_out <- expert_out_unfair_n / expert_out_n
+diff_out <- p_expert_out - andre_out_p
+se_out <- sqrt((p_expert_out * (1 - p_expert_out)) / expert_out_n +
+               (andre_out_p * (1 - andre_out_p)) / andre_out_n)
+ci_out <- c(diff_out - 1.96 * se_out, diff_out + 1.96 * se_out)
+
+cat("\n=== Experts vs. Andre (2024) Public: Outcomes 'Unfair' ===\n")
+cat("Expert proportion:", round(p_expert_out, 3), "\n")
+cat("Public proportion (Andre 2024):", andre_out_p, "\n")
+cat("Difference:", round(diff_out, 3),
+    "  95% CI:", round(ci_out, 3), "\n")
+cat("Chi-squared =", round(prop_test_out$statistic, 3),
+    ", p =", format.pval(prop_test_out$p.value, digits = 4), "\n")
+
+# --- 6c. Summary of redistribution decisions by discipline (Appendix B) ------
+# Percentages are reported with one decimal place to avoid rounding
+# ambiguity (e.g., 35/40 = 87.5% and 32/37 = 86.5%).
+
+summary_by_disc <- vignette1[discipline %in% disciplines,
+  .(n                      = .N,
+    mean_reward_share      = round(mean(disadv_1, na.rm = TRUE), 1),
+    share_redistributing   = round(100 * mean(redistributes, na.rm = TRUE), 1),
+    circumstances_unfair   = round(100 * sum(circ_1 == "Unfair", na.rm = TRUE) /
+                                     sum(!is.na(circ_1)), 1),
+    outcomes_unfair        = round(100 * sum(result_1 == "Unfair", na.rm = TRUE) /
+                                     sum(!is.na(result_1)), 1)),
+  by = discipline]
+setorder(summary_by_disc, discipline)
+
+cat("\n=== Appendix B: Redistribution Decisions by Discipline ===\n")
+print(summary_by_disc)
+
 # --- 7. Between-discipline comparisons ---------------------------------------
 
 cat("\n=== Kruskal-Wallis: Compensation share across disciplines ===\n")
@@ -344,9 +393,12 @@ if (kw_test$p.value < 0.05) {
 # The primary comparisons are:
 #   (1) Experts vs. public: proportion redistributing
 #   (2) Experts vs. public: mean compensation share
-#   (3) Experts vs. Andre (2024): fairness judgment
+#   (3) Experts vs. Andre (2024): circumstances judged unfair
 #
 # We apply Holm-Bonferroni correction to these three primary tests.
+# The comparison of outcomes judged unfair (Section 6b) is a secondary
+# comparison and is reported with its unadjusted p-value. Including it as a
+# fourth test does not change its p-value, since it is the largest p-value.
 
 primary_pvalues <- c(
   prop_redist = prop_test$p.value,
@@ -407,41 +459,50 @@ comparison_table <- data.table(
   comparison = c(
     "Proportion redistributing",
     "Mean compensation share",
-    "Circumstances judged unfair"
+    "Circumstances judged unfair",
+    "Outcomes judged unfair (secondary)"
   ),
   expert = c(
     round(p_expert, 3),
     round(expert_mean, 2),
-    round(p_expert_circ, 3)
+    round(p_expert_circ, 3),
+    round(p_expert_out, 3)
   ),
-  public = c(public_p, public_mean, andre_p),
+  public = c(public_p, public_mean, andre_p, andre_out_p),
   difference = c(
     round(diff_p, 3),
     round(diff_means, 2),
-    round(diff_andre, 3)
+    round(diff_andre, 3),
+    round(diff_out, 3)
   ),
   ci_lower = c(
     round(ci_diff_p[1], 3),
     round(ci_meandiff[1], 2),
-    round(ci_andre[1], 3)
+    round(ci_andre[1], 3),
+    round(ci_out[1], 3)
   ),
   ci_upper = c(
     round(ci_diff_p[2], 3),
     round(ci_meandiff[2], 2),
-    round(ci_andre[2], 3)
+    round(ci_andre[2], 3),
+    round(ci_out[2], 3)
   ),
   p_raw = c(
     prop_test$p.value,
     z_pvalue,
-    prop_test_andre$p.value
+    prop_test_andre$p.value,
+    prop_test_out$p.value
   ),
-  p_adjusted = adjusted_pvalues
+  p_adjusted = c(adjusted_pvalues, NA)
 )
 fwrite(comparison_table, file.path(output_dir, "table3_expert_vs_public.csv"))
 
 # Table 4: Fairness judgments by discipline
 fwrite(circ_results, file.path(output_dir, "table4_circumstances_unfair.csv"))
 fwrite(result_results, file.path(output_dir, "table5_result_fair.csv"))
+
+# Appendix B: Redistribution decisions by discipline
+fwrite(summary_by_disc, file.path(output_dir, "appendixB_redistribution_by_discipline.csv"))
 
 # Table 6: Sample composition
 fwrite(job_table, file.path(output_dir, "table6_job_titles.csv"))
