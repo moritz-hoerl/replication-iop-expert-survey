@@ -6,7 +6,7 @@
 #               economics, philosophy, and sociology with published estimates
 #               from a representative public sample ("Shallow Meritocracy").
 #
-# Data:         Replication shallow meritocracy_expert_sample.csv
+# Data:         data/expert_survey.csv
 #
 # Author:      Moritz Hörl
 # Date:        October 2026
@@ -177,9 +177,10 @@ print(prop_results)
 
 # --- 5. Comparison with public sample (Shallow Meritocracy) -------------------
 #
-# Reference values from the published representative survey:
+# Reference values from the published representative survey
+# (Andre 2025, Review of Economic Studies 92(2), poverty vignette, main study):
 #   - Proportion redistributing: p = 0.547, N = 887
-#   - Mean share to disadvantaged: mean = 24.02, SE = 0.874, N = 887
+#   - Mean share to disadvantaged: mean = 24.208, SE = 0.874, N = 887
 #
 # NOTE: Individual-level public data are not available for this replication.
 #       All comparisons therefore use summary-statistic-based tests.
@@ -187,7 +188,7 @@ print(prop_results)
 
 public_p    <- 0.547
 public_n    <- 887
-public_mean <- 24.02
+public_mean <- 24.208
 public_se   <- 0.874
 
 # --- 5a. Test: proportion redistributing (experts vs. public) ----------------
@@ -300,11 +301,13 @@ result_results <- rbindlist(list(
 print(result_results)
 
 # --- 6a. Comparison with Andre (2024) public fairness data -------------------
+# Public fairness judgments stem from Andre's separate vignette evaluation
+# study (n = 601).
 
 expert_unfair_n <- sum(vignette1$circ_1 == "Unfair", na.rm = TRUE)
 expert_circ_n   <- sum(!is.na(vignette1$circ_1))
 
-andre_p <- 0.82
+andre_p <- 0.73   # circumstances judged unfair, poverty vignette (Andre 2025, p. 802)
 andre_n <- 601
 
 prop_test_andre <- prop.test(
@@ -329,13 +332,12 @@ cat("Chi-squared =", round(prop_test_andre$statistic, 3),
 
 # --- 6b. Comparison with Andre (2024): outcomes judged 'Unfair' --------------
 # Secondary comparison (not part of the three primary tests in Section 8).
-# NOTE: andre_out_n should be set to the N Andre (2024) reports for the
-#       outcome-fairness question. Using N = 887 instead yields p ~ 0.017.
+# Public values stem from Andre's vignette evaluation study (n = 601).
 
 expert_out_unfair_n <- sum(vignette1$result_1 == "Unfair", na.rm = TRUE)
 expert_out_n        <- sum(!is.na(vignette1$result_1))
 
-andre_out_p <- 0.18
+andre_out_p <- 0.18   # outcomes judged unfair = 1 - 0.82 judged fair (Andre 2025, p. 802)
 andre_out_n <- 601
 
 prop_test_out <- prop.test(
