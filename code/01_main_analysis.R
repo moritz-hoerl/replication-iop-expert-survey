@@ -34,23 +34,31 @@ setDT(raw)
 # Select and rename relevant columns
 raw <- raw[, .(Q1, Q3, Q12_1_1, Q12_1_2, Q22, Q23,
                Q19_1_1, Q19_1_2, Q24, Q25,
-               Q23_1_1, Q23_1_2, Q26, Q27)]
+               Q23_1_1, Q23_1_2, Q26, Q27, Q21)]
 
 setnames(raw,
          old = c("Q1", "Q3", "Q12_1_1", "Q12_1_2", "Q22", "Q23",
                  "Q19_1_1", "Q19_1_2", "Q24", "Q25",
-                 "Q23_1_1", "Q23_1_2", "Q26", "Q27"),
+                 "Q23_1_1", "Q23_1_2", "Q26", "Q27", "Q21"),
          new = c("title", "discipline",
                  "adv_1", "disadv_1", "circ_1", "result_1",
                  "adv_2", "disadv_2", "circ_2", "result_2",
-                 "adv_3", "disadv_3", "circ_3", "result_3"))
+                 "adv_3", "disadv_3", "circ_3", "result_3",
+                 "knows_study"))
+
+# Q21 asks whether the respondent already knew the original study
+# ("Shallow Meritocracy"). Used for the robustness check in Section 7b.
+
+# Correct typo in the position label of the survey export
+raw[title == "Asisstant professor/post-doc", title := "Assistant professor/post-doc"]
 
 cat("Raw dataset rows:", nrow(raw), "\n")
 
 # --- 2. Poverty vignette: select and clean ------------------------------------
 
 # Extract columns for the poverty vignette (vignette 1)
-vignette1 <- raw[, .(title, discipline, adv_1, disadv_1, circ_1, result_1)]
+vignette1 <- raw[, .(title, discipline, adv_1, disadv_1, circ_1, result_1,
+                     knows_study)]
 
 # Convert allocation variables to numeric for validation
 vignette1[, adv_1  := as.numeric(adv_1)]
@@ -388,6 +396,50 @@ if (kw_test$p.value < 0.05) {
   print(pw)
 }
 
+# --- 7b. Robustness: excluding respondents who knew the original study -------
+# Two respondents indicated that they already knew the original study (Q21).
+# The main comparisons are re-estimated without them.
+
+robust <- vignette1[is.na(knows_study) | knows_study != "Yes"]
+cat("\n=== Robustness: excluding respondents who knew the study ===\n")
+cat("Excluded:", nrow(vignette1) - nrow(robust), " Remaining N =", nrow(robust), "\n")
+
+r_n    <- nrow(robust)
+r_mean <- mean(robust$disadv_1, na.rm = TRUE)
+r_sd   <- sd(robust$disadv_1, na.rm = TRUE)
+r_z    <- (r_mean - public_mean) / sqrt(r_sd^2 / r_n + public_sd^2 / public_n)
+r_zp   <- 2 * pnorm(-abs(r_z))
+r_d    <- (r_mean - public_mean) /
+  sqrt(((r_n - 1) * r_sd^2 + (public_n - 1) * public_sd^2) / (r_n + public_n - 2))
+
+r_prop_redist <- prop.test(
+  x = c(sum(robust$redistributes, na.rm = TRUE), round(public_p * public_n)),
+  n = c(r_n, public_n), correct = TRUE)
+r_prop_circ <- prop.test(
+  x = c(sum(robust$circ_1 == "Unfair", na.rm = TRUE), round(andre_p * andre_n)),
+  n = c(sum(!is.na(robust$circ_1)), andre_n), correct = TRUE)
+r_prop_out <- prop.test(
+  x = c(sum(robust$result_1 == "Unfair", na.rm = TRUE), round(andre_out_p * andre_out_n)),
+  n = c(sum(!is.na(robust$result_1)), andre_out_n), correct = TRUE)
+
+r_adjusted <- p.adjust(c(r_prop_redist$p.value, r_zp, r_prop_circ$p.value),
+                       method = "holm")
+
+robust_table <- data.table(
+  comparison = c("Mean compensation share", "Proportion redistributing",
+                 "Circumstances judged unfair", "Outcomes judged unfair (secondary)"),
+  expert = c(round(r_mean, 2),
+             round(mean(robust$redistributes, na.rm = TRUE), 3),
+             round(mean(robust$circ_1 == "Unfair", na.rm = TRUE), 3),
+             round(mean(robust$result_1 == "Unfair", na.rm = TRUE), 3)),
+  statistic = c(round(r_z, 2), round(r_prop_redist$statistic, 2),
+                round(r_prop_circ$statistic, 2), round(r_prop_out$statistic, 2)),
+  p_raw = c(r_zp, r_prop_redist$p.value, r_prop_circ$p.value, r_prop_out$p.value),
+  p_adjusted = c(r_adjusted[2], r_adjusted[1], r_adjusted[3], NA)
+)
+cat("Cohen's d:", round(r_d, 3), "\n")
+print(robust_table)
+
 # --- 8. Multiple testing correction (summary) ---------------------------------
 #
 # The primary comparisons are:
@@ -501,6 +553,9 @@ fwrite(comparison_table, file.path(output_dir, "table3_expert_vs_public.csv"))
 fwrite(circ_results, file.path(output_dir, "table4_circumstances_unfair.csv"))
 fwrite(result_results, file.path(output_dir, "table5_result_fair.csv"))
 
+# Robustness check (Section 7b)
+fwrite(robust_table, file.path(output_dir, "robustness_excluding_known_study.csv"))
+
 # Appendix B: Redistribution decisions by discipline
 fwrite(summary_by_disc, file.path(output_dir, "appendixB_redistribution_by_discipline.csv"))
 
@@ -512,3 +567,4 @@ cat("\nTables saved to:", normalizePath(output_dir), "\n")
 
 # --- End of script ------------------------------------------------------------
 cat("\n=== Replication complete ===\n")
+sessionInfo()
